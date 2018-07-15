@@ -6,6 +6,7 @@ class MyPromise {
     private error: any;
     private fulfillmentHandler: any[] = [];
     private rejectionHandler: any[] = [];
+    private finallyHandler: any[] = [];
 
     public static all(promises: MyPromise[]) {
         const p = new MyPromise((resolve, reject) => {
@@ -24,11 +25,12 @@ class MyPromise {
                     .finally(() => {
                         completedPromises++;
                         if (completedPromises === promiseCount) {
-                            resolve();
+                            resolve(completedPromiseValues);
                         }
                     });
             });
         });
+        return p;
     }
 
     public static resolve(value: any) {
@@ -53,16 +55,24 @@ class MyPromise {
     private resolve(val: any) {
         this.value = val;
         this.state = "fulfilled";
-        if (this.fulfillmentHandler) {
-            this.fulfillmentHandler.forEach((entry) => entry(this.value));
+        while (this.fulfillmentHandler.length > 0) {
+            this.fulfillmentHandler.pop()(this.value);
+        }
+
+        while (this.finallyHandler.length > 0) {
+            this.finallyHandler.pop()();
         }
     }
 
     private reject(err: any) {
         this.error = err;
         this.state = "rejected";
-        if (this.rejectionHandler) {
-            this.rejectionHandler.forEach((entry) => entry(this.error));
+        while (this.rejectionHandler.length > 0) {
+            this.rejectionHandler.pop()(this.error);
+        }
+
+        while (this.finallyHandler.length > 0) {
+            this.finallyHandler.pop()();
         }
     }
 
@@ -75,7 +85,9 @@ class MyPromise {
         });
 
         if (this.state === "fulfilled") {
-            callback(this.value);
+            while (this.fulfillmentHandler.length > 0) {
+                this.fulfillmentHandler.pop()(this.value);
+            }
         }
 
         return p;
@@ -90,15 +102,16 @@ class MyPromise {
         });
 
         if (this.state === "rejected") {
-            callback(this.value);
+            while (this.rejectionHandler.length > 0) {
+                this.rejectionHandler.pop()(this.error);
+            }
         }
 
         return p;
     }
 
     public finally(callback: any) {
-        this.fulfillmentHandler.push(callback);
-        this.rejectionHandler.push(callback);
+        this.finallyHandler.push(callback);
 
         const p = new MyPromise((resolve, reject) => {
             this.fulfillmentHandler.push(resolve);
@@ -119,7 +132,14 @@ const p1 = new MyPromise((resolve, reject) => {
     setTimeout(resolve, 3000, "hi");
 });
 
-// tslint:disable-next-line:no-console
-console.log(p1);
-// tslint:disable-next-line:no-console
-console.log(p1.then((val: any) => console.log(val)));
+const p2 = new MyPromise((resolve, reject) => {
+    setTimeout(resolve, 5000, "hello");
+});
+
+const p3 = MyPromise.all([p1, p2]);
+
+p3.then((val: any) => console.log("bye: " + val));
+// console.log(p1);
+p1.then((val: any) => console.log("VAL: " + val));
+p2.then((val: any) => console.log("VAL: " + val));
+p1.finally(() => console.log("finished"));
