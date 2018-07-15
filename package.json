@@ -4,11 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "parcel src/index.html",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "http-server": "^0.11.1",
     "parcel": "^1.9.6",
     "ts-jest": "^23.0.0",
     "tslint": "^5.10.0",
