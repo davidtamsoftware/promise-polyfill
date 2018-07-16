@@ -6,27 +6,23 @@ class MyPromise {
     private error: any;
     private fulfillmentHandler: any[] = [];
     private rejectionHandler: any[] = [];
-    private finallyHandler: any[] = [];
 
     public static all(promises: MyPromise[]) {
         const p = new MyPromise((resolve, reject) => {
             const promiseCount = promises.length;
-            let completedPromises = 0;
+            let fulfilledPromises = 0;
             const completedPromiseValues: any[] = [];
-            const completedPromiseErrors: any[] = [];
             promises.forEach((entry, index) => {
                 entry
                     .then((val: any) => {
                         completedPromiseValues[index] = val;
-                    })
-                    .catch((err: any) => {
-                        completedPromiseErrors[index] = err;
-                    })
-                    .finally(() => {
-                        completedPromises++;
-                        if (completedPromises === promiseCount) {
+                        fulfilledPromises++;
+                        if (fulfilledPromises === promiseCount) {
                             resolve(completedPromiseValues);
                         }
+                    })
+                    .catch((err: any) => {
+                        reject(err);
                     });
             });
         });
@@ -56,11 +52,7 @@ class MyPromise {
         this.value = val;
         this.state = "fulfilled";
         while (this.fulfillmentHandler.length > 0) {
-            this.fulfillmentHandler.pop()(this.value);
-        }
-
-        while (this.finallyHandler.length > 0) {
-            this.finallyHandler.pop()();
+            this.fulfillmentHandler.shift()(this.value);
         }
     }
 
@@ -68,11 +60,7 @@ class MyPromise {
         this.error = err;
         this.state = "rejected";
         while (this.rejectionHandler.length > 0) {
-            this.rejectionHandler.pop()(this.error);
-        }
-
-        while (this.finallyHandler.length > 0) {
-            this.finallyHandler.pop()();
+            this.rejectionHandler.shift()(this.error);
         }
     }
 
@@ -86,7 +74,7 @@ class MyPromise {
 
         if (this.state === "fulfilled") {
             while (this.fulfillmentHandler.length > 0) {
-                this.fulfillmentHandler.pop()(this.value);
+                this.fulfillmentHandler.shift()(this.value);
             }
         }
 
@@ -103,7 +91,7 @@ class MyPromise {
 
         if (this.state === "rejected") {
             while (this.rejectionHandler.length > 0) {
-                this.rejectionHandler.pop()(this.error);
+                this.rejectionHandler.shift()(this.error);
             }
         }
 
@@ -111,15 +99,25 @@ class MyPromise {
     }
 
     public finally(callback: any) {
-        this.finallyHandler.push(callback);
+        this.fulfillmentHandler.push(callback);
+        this.rejectionHandler.push(callback);
 
         const p = new MyPromise((resolve, reject) => {
             this.fulfillmentHandler.push(resolve);
             this.rejectionHandler.push(reject);
         });
 
-        if (this.state === "rejected" || this.state === "fulfilled") {
-            callback(this.value);
+        // if (this.state === "rejected" || this.state === "fulfilled") {
+        //     callback(this.value);
+        // }
+        if (this.state === "fulfilled") {
+            while (this.fulfillmentHandler.length > 0) {
+                this.fulfillmentHandler.shift()(this.value);
+            }
+        } else if (this.state === "rejected") {
+            while (this.rejectionHandler.length > 0) {
+                this.rejectionHandler.shift()(this.error);
+            }
         }
 
         return p;
@@ -138,8 +136,8 @@ const p2 = new MyPromise((resolve, reject) => {
 
 const p3 = MyPromise.all([p1, p2]);
 
-p3.then((val: any) => console.log("bye: " + val));
-// console.log(p1);
-p1.then((val: any) => console.log("VAL: " + val));
-p2.then((val: any) => console.log("VAL: " + val));
-p1.finally(() => console.log("finished"));
+p3.then((val: any) => console.log("3: " + val));
+p1.then((val: any) => console.log("1: " + val));
+p2.then((val: any) => console.log("2: " + val));
+p1.finally(() => console.log("1.1: finished"));
+p3.then((val: any) => console.log("3.1: " + val));
