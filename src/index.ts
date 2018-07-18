@@ -7,6 +7,8 @@ class MyPromise {
     private fulfillmentHandler: any[] = [];
     private rejectionHandler: any[] = [];
     private finallyHandler: any[] = [];
+
+    // used for Promise.all handlers that should execute after finally
     private postFinallyHandler: any[] = [];
 
     public static all(promises: MyPromise[]) {
@@ -43,35 +45,35 @@ class MyPromise {
         return new MyPromise((resolve, reject) => reject(err));
     }
 
-    constructor(callback: (resolve: any, reject: any) => any) {
+    constructor(executor: (resolve: any, reject: any) => any) {
         this.state = "pending";
         this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
-        callback(this.resolve, this.reject);
+        executor(this.resolve, this.reject);
     }
 
     private resolve(val: any) {
-        this.value = val;
-        this.state = "fulfilled";
-        this.handleResolve();
-    }
+                this.value = val;
+                this.state = "fulfilled";
+                this.handleResolve();
+            }
 
     private reject(err: any) {
-        this.error = err;
-        this.state = "rejected";
-        this.handleReject();
-    }
+                this.error = err;
+                this.state = "rejected";
+                this.handleReject();
+            }
 
     private handleResolve() {
         while (this.fulfillmentHandler.length > 0) {
-            this.fulfillmentHandler.shift()(this.value);
+            this.value = this.fulfillmentHandler.shift()(this.value);
         }
         this.handleFinally();
     }
 
     private handleReject() {
         while (this.rejectionHandler.length > 0) {
-            this.rejectionHandler.shift()(this.error);
+            this.value = this.rejectionHandler.shift()(this.error);
         }
         this.handleFinally();
     }
@@ -90,7 +92,20 @@ class MyPromise {
         if (onRejection) {
             this.rejectionHandler.push(onRejection);
         }
+        return this.createChainedPromise();
+    }
 
+    public catch(onRejection: any) {
+        this.rejectionHandler.push(onRejection);
+        return this.createChainedPromise();
+    }
+
+    public finally(onFinally: any) {
+        this.finallyHandler.push(onFinally);
+        return this.createChainedPromise();
+    }
+
+    private createChainedPromise() {
         const p = new MyPromise((resolve, reject) => {
             this.fulfillmentHandler.push(resolve);
             this.rejectionHandler.push(reject);
@@ -98,40 +113,8 @@ class MyPromise {
 
         if (this.state === "fulfilled") {
             this.handleResolve();
-        }
-
-        if (onRejection && this.state === "rejected") {
+        } else if (this.state === "rejected") {
             this.handleReject();
-        }
-
-        return p;
-    }
-
-    public catch(onRejection: any) {
-        this.rejectionHandler.push(onRejection);
-
-        const p = new MyPromise((resolve, reject) => {
-            this.fulfillmentHandler.push(resolve);
-            this.rejectionHandler.push(reject);
-        });
-
-        if (this.state === "rejected") {
-            this.handleReject();
-        }
-
-        return p;
-    }
-
-    public finally(onFinally: any) {
-        this.finallyHandler.push(onFinally);
-
-        const p = new MyPromise((resolve, reject) => {
-            this.fulfillmentHandler.push(resolve);
-            this.rejectionHandler.push(reject);
-        });
-
-        if (this.state === "rejected" || this.state === "fulfilled") {
-            this.handleFinally();
         }
 
         return p;
@@ -147,18 +130,45 @@ class MyPromise {
 
 export default MyPromise;
 
-const p1 = new MyPromise((resolve, reject) => {
-    setTimeout(resolve, 3000, "hi");
-});
+// const p0 = MyPromise.reject("b");
 
-const p2 = new MyPromise((resolve, reject) => {
-    setTimeout(resolve, 5000, "hello");
-});
+// p0.then(
+//     (val: any) => console.log("value is " + val),
+//     (val: any) => console.log("err is " + val));
 
-const p3 = MyPromise.all([p1, p2]);
+// const p1 = new MyPromise((resolve, reject) => {
+//     setTimeout(resolve, 3000, "hi");
+// });
 
-p3.then((val: any) => console.log("3: " + val));
-p1.then((val: any) => console.log("1: " + val), (val: any) => console.log("failed " + val));
-p2.then((val: any) => console.log("2: " + val));
-p1.finally(() => console.log("1.1: finished"));
-p3.then((val: any) => console.log("3.1: " + val), (val: any) => console.log("promise all failed " + val));
+// const p2 = new MyPromise((resolve, reject) => {
+//     setTimeout(resolve, 5000, "hello");
+// });
+
+// const p3 = MyPromise.all([p1, p2]);
+
+// p3.then((val: any) => console.log("3: " + val));
+// p1.then((val: any) => console.log("1: " + val), (val: any) => console.log("failed " + val));
+// p2.then((val: any) => console.log("2: " + val));
+// p1.finally(() => console.log("1.1: finished"));
+// p3.then((val: any) => console.log("3.1: " + val), (val: any) => console.log("promise all failed " + val));
+
+// const p1 = new MyPromise((resolve, reject) => {
+//     setTimeout(resolve, 3000, "hi");
+// })
+// .then((a: any) => console.log("1" + a))
+// .catch((a: any) => console.log("2" + a))
+// .then((a: any) => console.log("3" + a));
+
+// const p2 = new MyPromise((resolve, reject) => {
+//     setTimeout(resolve, 3000, "hi");
+// })
+// .then((a: any) =>  { console.log("1" + a); return "bye"; })
+// .catch((a: any) => { console.log("2" + a); return "hjh"; })
+// .then((a: any) => console.log("3" + a));
+
+// const p2 = new Promise((resolve, reject) => {
+//     setTimeout(resolve, 3000, "hi");
+// })
+// .then((a) =>  { console.log("1" + a); return "bye"; })
+// .catch((a) => { console.log("2" + a); return "hjh"; })
+// .then((a) => console.log("3" + a));
