@@ -6,38 +6,24 @@ class MyPromise {
     private error: any;
     private fulfillmentHandler: any[] = [];
     private rejectionHandler: any[] = [];
-    private finallyHandler: any[] = [];
-
-    // used for Promise.all handlers that should execute after finally
-    private postFinallyHandler: any[] = [];
 
     public static all(promises: MyPromise[]) {
         const p = new MyPromise((resolve, reject) => {
-            // setTimeout(() => {
-                const promiseCount = promises.length;
-                let fulfilledPromises = 0;
-                // let err: any;
-                const completedPromiseValues: any[] = [];
-                promises.forEach((entry, index) => {
-                    entry.then((val: any) => {
-                        completedPromiseValues[index] = val;
-                        fulfilledPromises++;
-                        if (fulfilledPromises === promiseCount) {
-                            resolve(completedPromiseValues);
-                        }
-                    });
-                    entry.catch((e: any) => {
-                        reject(e);
-                    });
-                    // entry.postFinally(() => {
-                    //     if (fulfilledPromises === promiseCount) {
-                    //         resolve(completedPromiseValues);
-                    //     } else if (err) {
-                    //         reject(err);
-                    //     }
-                    // });
+            const promiseCount = promises.length;
+            let fulfilledPromises = 0;
+            const completedPromiseValues: any[] = [];
+            promises.forEach((entry, index) => {
+                entry.then((val: any) => {
+                    completedPromiseValues[index] = val;
+                    fulfilledPromises++;
+                    if (fulfilledPromises === promiseCount) {
+                        resolve(completedPromiseValues);
+                    }
                 });
-            // }, 0);
+                entry.catch((e: any) => {
+                    reject(e);
+                });
+            });
         });
         return p;
     }
@@ -55,39 +41,35 @@ class MyPromise {
         this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
         executor(this.resolve, this.reject);
-        // setTimeout(() => executor(this.resolve, this.reject), 0);
     }
 
     private resolve(val: any) {
-        // setTimeout(() => {
-            if (this.state === "pending") {
-                this.value = val;
-                this.state = "fulfilled";
-                this.handleResolve();
-                console.log("state is " + this.state + ", value: " + this.value);
-            }
-        // }, 0);
+        if (this.state === "pending") {
+            this.value = val;
+            this.state = "fulfilled";
+            this.handleResolve();
+        }
     }
 
     private reject(err: any) {
-        // setTimeout(() => {
-            if (this.state === "pending") {
-                this.error = err;
-                this.state = "rejected";
-                this.handleReject();
-            }
-        // }, 0);
+        if (this.state === "pending") {
+            this.error = err;
+            this.state = "rejected";
+            this.handleReject();
+        }
     }
 
     private handleResolve() {
         while (this.fulfillmentHandler.length > 0) {
-            this.fulfillmentHandler.shift()();
+            const handler = this.fulfillmentHandler.shift().bind(this);
+            setTimeout(handler, 0);
         }
     }
 
     private handleReject() {
         while (this.rejectionHandler.length > 0) {
-            this.rejectionHandler.shift()();
+            const handler = this.rejectionHandler.shift().bind(this);
+            setTimeout(handler, 0);
         }
     }
 
@@ -127,13 +109,6 @@ class MyPromise {
 
         return p;
     }
-
-    // private postFinally(onFinally: any) {
-    //     this.postFinallyHandler.push(onFinally);
-    //     if (this.state === "rejected" || this.state === "fulfilled") {
-    //         this.handleFinally();
-    //     }
-    // }
 }
 
 export default MyPromise;
