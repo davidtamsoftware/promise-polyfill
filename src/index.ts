@@ -13,26 +13,31 @@ class MyPromise {
 
     public static all(promises: MyPromise[]) {
         const p = new MyPromise((resolve, reject) => {
-            const promiseCount = promises.length;
-            let fulfilledPromises = 0;
-            let err: any;
-            const completedPromiseValues: any[] = [];
-            promises.forEach((entry, index) => {
-                entry.then((val: any) => {
-                    completedPromiseValues[index] = val;
-                    fulfilledPromises++;
+            // setTimeout(() => {
+                const promiseCount = promises.length;
+                let fulfilledPromises = 0;
+                // let err: any;
+                const completedPromiseValues: any[] = [];
+                promises.forEach((entry, index) => {
+                    entry.then((val: any) => {
+                        completedPromiseValues[index] = val;
+                        fulfilledPromises++;
+                        if (fulfilledPromises === promiseCount) {
+                            resolve(completedPromiseValues);
+                        }
+                    });
+                    entry.catch((e: any) => {
+                        reject(e);
+                    });
+                    // entry.postFinally(() => {
+                    //     if (fulfilledPromises === promiseCount) {
+                    //         resolve(completedPromiseValues);
+                    //     } else if (err) {
+                    //         reject(err);
+                    //     }
+                    // });
                 });
-                entry.catch((e: any) => {
-                    err = e;
-                });
-                entry.postFinally(() => {
-                    if (fulfilledPromises === promiseCount) {
-                        resolve(completedPromiseValues);
-                    } else if (err) {
-                        reject(err);
-                    }
-                });
-            });
+            // }, 0);
         });
         return p;
     }
@@ -50,65 +55,68 @@ class MyPromise {
         this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
         executor(this.resolve, this.reject);
+        // setTimeout(() => executor(this.resolve, this.reject), 0);
     }
 
     private resolve(val: any) {
+        // setTimeout(() => {
+            if (this.state === "pending") {
                 this.value = val;
                 this.state = "fulfilled";
                 this.handleResolve();
+                console.log("state is " + this.state + ", value: " + this.value);
             }
+        // }, 0);
+    }
 
     private reject(err: any) {
+        // setTimeout(() => {
+            if (this.state === "pending") {
                 this.error = err;
                 this.state = "rejected";
                 this.handleReject();
             }
+        // }, 0);
+    }
 
     private handleResolve() {
         while (this.fulfillmentHandler.length > 0) {
-            this.value = this.fulfillmentHandler.shift()(this.value);
+            this.fulfillmentHandler.shift()();
         }
-        this.handleFinally();
     }
 
     private handleReject() {
         while (this.rejectionHandler.length > 0) {
-            this.value = this.rejectionHandler.shift()(this.error);
-        }
-        this.handleFinally();
-    }
-
-    private handleFinally() {
-        while (this.finallyHandler.length > 0) {
-            this.finallyHandler.shift()();
-        }
-        while (this.postFinallyHandler.length > 0) {
-            this.postFinallyHandler.shift()();
+            this.rejectionHandler.shift()();
         }
     }
 
     public then(onFilfillment: any, onRejection?: any) {
-        this.fulfillmentHandler.push(onFilfillment);
-        if (onRejection) {
-            this.rejectionHandler.push(onRejection);
-        }
-        return this.createChainedPromise();
+        return this.createChainedPromise(onFilfillment, onRejection, undefined);
     }
 
     public catch(onRejection: any) {
-        this.rejectionHandler.push(onRejection);
-        return this.createChainedPromise();
+        return this.createChainedPromise(undefined, onRejection, undefined);
     }
 
     public finally(onFinally: any) {
-        this.finallyHandler.push(onFinally);
-        return this.createChainedPromise();
+        return this.createChainedPromise(undefined, undefined, onFinally);
     }
 
-    private createChainedPromise() {
+    private createChainedPromise(onFilfillment: any, onRejection: any, onFinally: any) {
         const p = new MyPromise((resolve, reject) => {
-            this.fulfillmentHandler.push(resolve);
-            this.rejectionHandler.push(reject);
+            this.fulfillmentHandler.push(() => {
+                const value = onFilfillment ? onFilfillment(this.value) : this.value;
+                resolve(value);
+            });
+            this.rejectionHandler.push(() => {
+                const error = onRejection ? onRejection(this.error) : this.error;
+                reject(error);
+            });
+            if (onFinally) {
+                this.fulfillmentHandler.push(onFinally);
+                this.rejectionHandler.push(onFinally);
+            }
         });
 
         if (this.state === "fulfilled") {
@@ -120,12 +128,12 @@ class MyPromise {
         return p;
     }
 
-    private postFinally(onFinally: any) {
-        this.postFinallyHandler.push(onFinally);
-        if (this.state === "rejected" || this.state === "fulfilled") {
-            this.handleFinally();
-        }
-    }
+    // private postFinally(onFinally: any) {
+    //     this.postFinallyHandler.push(onFinally);
+    //     if (this.state === "rejected" || this.state === "fulfilled") {
+    //         this.handleFinally();
+    //     }
+    // }
 }
 
 export default MyPromise;
@@ -172,3 +180,20 @@ export default MyPromise;
 // .then((a) =>  { console.log("1" + a); return "bye"; })
 // .catch((a) => { console.log("2" + a); return "hjh"; })
 // .then((a) => console.log("3" + a));
+
+let result = "";
+let p1;
+let p2;
+let p3;
+function stack1() {
+    p1 = MyPromise.resolve(1);
+    p2 = MyPromise.resolve(2);
+}
+stack1();
+p3 = MyPromise.all([p1 as any, p2 as any]);
+const a = p3.then((arg: any) => result += `3:${arg};`);
+
+a.then(() => console.log("***" + result));
+
+(p1 as any).then((arg: any) => result += `1:${arg};`);
+(p2 as any).then((arg: any) => result += `2:${arg};`);
