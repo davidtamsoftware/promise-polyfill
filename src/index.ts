@@ -13,16 +13,17 @@ class MyPromise {
             let fulfilledPromises = 0;
             const completedPromiseValues: any[] = [];
             promises.forEach((entry, index) => {
-                entry.then((val: any) => {
-                    completedPromiseValues[index] = val;
-                    fulfilledPromises++;
-                    if (fulfilledPromises === promiseCount) {
-                        resolve(completedPromiseValues);
-                    }
-                });
-                entry.catch((e: any) => {
-                    reject(e);
-                });
+                entry
+                    .then((val: any) => {
+                        completedPromiseValues[index] = val;
+                        fulfilledPromises++;
+                        if (fulfilledPromises === promiseCount) {
+                            resolve(completedPromiseValues);
+                        }
+                    })
+                    .catch((e: any) => {
+                        reject(e);
+                    });
             });
         });
         return p;
@@ -41,6 +42,18 @@ class MyPromise {
         this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
         executor(this.resolve, this.reject);
+    }
+
+    public then(onFilfillment: any, onRejection?: any) {
+        return this.createChainedPromise(onFilfillment, onRejection, undefined);
+    }
+
+    public catch(onRejection: any) {
+        return this.createChainedPromise(undefined, onRejection, undefined);
+    }
+
+    public finally(onFinally: any) {
+        return this.createChainedPromise(undefined, undefined, onFinally);
     }
 
     private resolve(val: any) {
@@ -73,28 +86,29 @@ class MyPromise {
         }
     }
 
-    public then(onFilfillment: any, onRejection?: any) {
-        return this.createChainedPromise(onFilfillment, onRejection, undefined);
-    }
-
-    public catch(onRejection: any) {
-        return this.createChainedPromise(undefined, onRejection, undefined);
-    }
-
-    public finally(onFinally: any) {
-        return this.createChainedPromise(undefined, undefined, onFinally);
-    }
-
     private createChainedPromise(onFilfillment: any, onRejection: any, onFinally: any) {
         const p = new MyPromise((resolve, reject) => {
             this.fulfillmentHandler.push(() => {
-                const value = onFilfillment ? onFilfillment(this.value) : this.value;
-                resolve(value);
+                try {
+                    const value = onFilfillment ? onFilfillment(this.value) : this.value;
+                    resolve(value);
+                } catch (error) {
+                    reject(error);
+                }
             });
-            this.rejectionHandler.push(() => {
-                const error = onRejection ? onRejection(this.error) : this.error;
-                reject(error);
-            });
+
+            if (onRejection) {
+                this.rejectionHandler.push(() => {
+                    try {
+                        onRejection(this.error);
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            } else {
+                this.rejectionHandler.push(() => reject(this.error));
+            }
+
             if (onFinally) {
                 this.fulfillmentHandler.push(onFinally);
                 this.rejectionHandler.push(onFinally);
@@ -156,19 +170,60 @@ export default MyPromise;
 // .catch((a) => { console.log("2" + a); return "hjh"; })
 // .then((a) => console.log("3" + a));
 
+// let result = "";
+// let p1;
+// let p2;
+// let p3;
+// function stack1() {
+//     p1 = MyPromise.resolve(1);
+//     p2 = MyPromise.resolve(2);
+// }
+// stack1();
+// p3 = MyPromise.all([p1 as any, p2 as any]);
+// const a = p3.then((arg: any) => result += `3:${arg};`);
+
+// a.then(() => console.log("***" + result));
+
+// (p1 as any).then((arg: any) => result += `1:${arg};`);
+// (p2 as any).then((arg: any) => result += `2:${arg};`);
+
+// let result = "";
+// const p1 = MyPromise.resolve(1);
+// const p2 = MyPromise.resolve(2);
+// const p3 = MyPromise.all([p1, p2]);
+
+// const chain1 = p1
+//     .then((arg: any) => result += `1:${arg};`)
+//     .finally(() => result += `1.1:finally;`);
+
+// p3
+//     .then((arg: any) => result += `3:${arg};`);
+
+// const chain2 = p2
+//     .then((arg: any) => result += `2:${arg};`)
+//     .then((arg: any) => result += `2.1:${arg};`)
+//     .finally(() => result += `2.2:finally;`);
+
+// MyPromise.all([chain1, p3, chain2]).then(() => {
+//     console.log("********************");
+// });
+
 let result = "";
-let p1;
-let p2;
-let p3;
-function stack1() {
-    p1 = MyPromise.resolve(1);
-    p2 = MyPromise.resolve(2);
-}
-stack1();
-p3 = MyPromise.all([p1 as any, p2 as any]);
-const a = p3.then((arg: any) => result += `3:${arg};`);
+// const p = MyPromise.all([
+//     MyPromise.resolve(1),
+//     MyPromise.reject("ERROR"),
+// ]);
 
-a.then(() => console.log("***" + result));
-
-(p1 as any).then((arg: any) => result += `1:${arg};`);
-(p2 as any).then((arg: any) => result += `2:${arg};`);
+const p = new MyPromise((resolve, reject) => setTimeout(reject, 1000));
+p
+    .then((v: any) => {
+        result += v;
+        console.log("1");
+    })
+    .catch((e: any) => {
+        result += e;
+        console.log("a");
+    })
+    .finally(() => {
+        console.log("tes");
+    });
