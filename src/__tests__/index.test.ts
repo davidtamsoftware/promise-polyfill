@@ -1,12 +1,12 @@
-import MyPromise from "../";
+import { Promise } from "../";
 
 jest.setTimeout(1000);
-describe("MyPromise", () => {
+describe("Promise", () => {
     test("race", (done) => {
         expect.assertions(1);
-        MyPromise.race([
-            new MyPromise((resolve, reject) => setTimeout(resolve, 300)),
-            new MyPromise((resolve, reject) => setTimeout((() => reject("test")), 100)),
+        Promise.race([
+            new Promise((resolve, reject) => setTimeout(resolve, 300)),
+            new Promise((resolve, reject) => setTimeout((() => reject("test")), 100)),
         ])
             .catch((err: any) => {
                 expect(err).toBe("test");
@@ -17,7 +17,7 @@ describe("MyPromise", () => {
     test("resolve", (done) => {
         expect.assertions(1);
         let result = "";
-        MyPromise.resolve(1)
+        Promise.resolve(1)
             .then((arg: any) => result += `success: ${arg}`)
             .catch((arg: any) => result += `fail: ${arg}`)
             .then((arg: any) => {
@@ -29,7 +29,7 @@ describe("MyPromise", () => {
     test("reject", (done) => {
         expect.assertions(1);
         let result = "";
-        MyPromise.reject(1)
+        Promise.reject(1)
             .then((arg: any) => result += `success: ${arg}`)
             .catch((arg: any) => {
                 result += `fail: ${arg}`;
@@ -41,9 +41,9 @@ describe("MyPromise", () => {
     test("all (unordered then)", (done) => {
         expect.assertions(1);
         let result = "";
-        const p1 = MyPromise.resolve(1);
-        const p2 = MyPromise.resolve(2);
-        const p3 = MyPromise.all([p1, p2]);
+        const p1 = Promise.resolve(1);
+        const p2 = Promise.resolve(2);
+        const p3 = Promise.all([p1, p2]);
 
         p3
             .then((arg: any) => result += `3:${arg};`)
@@ -58,9 +58,9 @@ describe("MyPromise", () => {
     test("all (ordered then)", (done) => {
         expect.assertions(1);
         let result = "";
-        const p1 = MyPromise.resolve(1);
-        const p2 = MyPromise.resolve(2);
-        const p3 = MyPromise.all([p1, p2]);
+        const p1 = Promise.resolve(1);
+        const p2 = Promise.resolve(2);
+        const p3 = Promise.all([p1, p2]);
 
         p1.then((arg: any) => result += `1:${arg};`);
         p2.then((arg: any) => result += `2:${arg};`);
@@ -74,9 +74,9 @@ describe("MyPromise", () => {
     test("all (unordered then)", (done) => {
         expect.assertions(1);
         let result = "";
-        const p1 = MyPromise.resolve(1);
-        const p2 = MyPromise.resolve(2);
-        const p3 = MyPromise.all([p1, p2]);
+        const p1 = Promise.resolve(1);
+        const p2 = Promise.resolve(2);
+        const p3 = Promise.all([p1, p2]);
 
         p3
             .then((arg: any) => result += `3:${arg};`);
@@ -90,7 +90,7 @@ describe("MyPromise", () => {
             .then((arg: any) => result += `2.1:${arg};`)
             .finally(() => result += `2.2:finally;`);
 
-        MyPromise.all([p3, chain1, chain2]).then(() => {
+        Promise.all([p3, chain1, chain2]).then(() => {
             expect(result).toBe("1:1;2:2;3:1,2;1.1:finally;2.1:1:1;2:2;;2.2:finally;");
             done();
         });
@@ -99,9 +99,9 @@ describe("MyPromise", () => {
     test("all (unordered then 2)", (done) => {
         expect.assertions(1);
         let result = "";
-        const p1 = MyPromise.resolve(1);
-        const p2 = MyPromise.resolve(2);
-        const p3 = MyPromise.all([p1, p2]);
+        const p1 = Promise.resolve(1);
+        const p2 = Promise.resolve(2);
+        const p3 = Promise.all([p1, p2]);
 
         const chain1 = p1
             .then((arg: any) => result += `1:${arg};`)
@@ -115,7 +115,7 @@ describe("MyPromise", () => {
             .then((arg: any) => result += `2.1:${arg};`)
             .finally(() => result += `2.2:finally;`);
 
-        MyPromise.all([chain1, chain2, p3]).then(() => {
+        Promise.all([chain1, chain2, p3]).then(() => {
             expect(result).toBe("1:1;2:2;3:1,2;1.1:finally;2.1:1:1;2:2;;2.2:finally;");
             done();
         });
@@ -124,9 +124,9 @@ describe("MyPromise", () => {
     test("all (ordered then/finally 2)", (done) => {
         expect.assertions(1);
         let result = "";
-        const p1 = MyPromise.resolve(1);
-        const p2 = MyPromise.resolve(2);
-        const p3 = MyPromise.all([p1, p2]);
+        const p1 = Promise.resolve(1);
+        const p2 = Promise.resolve(2);
+        const p3 = Promise.all([p1, p2]);
 
         const chain1 = p1
             .then((arg: any) => result += `1:${arg};`)
@@ -141,7 +141,7 @@ describe("MyPromise", () => {
             .then((arg: any) => result += `3:${arg};`)
             .catch(() => ({}));
 
-        MyPromise.all([chain1, chain2, p3])
+        Promise.all([chain1, chain2, p3])
             .then(() => {
                 expect(result).toBe("1:1;2:2;3:1,2;1.1:finally;2.1:1:1;2:2;;2.2:finally;");
                 done();
@@ -151,7 +151,7 @@ describe("MyPromise", () => {
     test("constructor", (done) => {
         expect.assertions(1);
         let result = "";
-        const p = new MyPromise((resolve, reject) => {
+        const p = new Promise((resolve, reject) => {
             resolve(1);
         });
 
@@ -167,7 +167,7 @@ describe("MyPromise", () => {
     test("attempt to resolve and reject v1", (done) => {
         expect.assertions(1);
         let result = "";
-        const promise1 = new MyPromise((resolve, reject) => {
+        const promise1 = new Promise((resolve, reject) => {
             resolve(1);
             reject(2);
         });
@@ -184,7 +184,7 @@ describe("MyPromise", () => {
     test("attempt to resolve and reject v2", (done) => {
         expect.assertions(1);
         let result = "";
-        const promise1 = new MyPromise((resolve, reject) => {
+        const promise1 = new Promise((resolve, reject) => {
             resolve(1);
             reject(2);
         });
@@ -202,9 +202,9 @@ describe("MyPromise", () => {
     test("all with success", (done) => {
         expect.assertions(1);
         let result: any;
-        const p = MyPromise.all([
-            MyPromise.resolve(1),
-            MyPromise.resolve(2),
+        const p = Promise.all([
+            Promise.resolve(1),
+            Promise.resolve(2),
         ]);
 
         p
@@ -219,9 +219,9 @@ describe("MyPromise", () => {
     test("all with error", (done) => {
         expect.assertions(1);
         let result = "";
-        const p = MyPromise.all([
-            MyPromise.reject("ERROR"),
-            MyPromise.resolve(1),
+        const p = Promise.all([
+            Promise.reject("ERROR"),
+            Promise.resolve(1),
         ]);
 
         p
