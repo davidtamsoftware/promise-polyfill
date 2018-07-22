@@ -7,13 +7,27 @@ class MyPromise {
     private fulfillmentHandler: any[] = [];
     private rejectionHandler: any[] = [];
 
+    public static race(promises: MyPromise[]) {
+        return new MyPromise((resolve, reject) => {
+            promises.forEach((promise) => {
+                promise
+                    .then((val: any) => {
+                        resolve(val);
+                    })
+                    .catch((err: any) => {
+                        reject(err);
+                    });
+            });
+        });
+    }
+
     public static all(promises: MyPromise[]) {
-        const p = new MyPromise((resolve, reject) => {
+        return new MyPromise((resolve, reject) => {
             const promiseCount = promises.length;
             let fulfilledPromises = 0;
             const completedPromiseValues: any[] = [];
-            promises.forEach((entry, index) => {
-                entry
+            promises.forEach((promise, index) => {
+                promise
                     .then((val: any) => {
                         completedPromiseValues[index] = val;
                         fulfilledPromises++;
@@ -21,12 +35,11 @@ class MyPromise {
                             resolve(completedPromiseValues);
                         }
                     })
-                    .catch((e: any) => {
-                        reject(e);
+                    .catch((err: any) => {
+                        reject(err);
                     });
             });
         });
-        return p;
     }
 
     public static resolve(value: any) {

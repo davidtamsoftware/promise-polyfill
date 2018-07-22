@@ -1,7 +1,19 @@
 import MyPromise from "../";
 
-jest.setTimeout(100);
+jest.setTimeout(1000);
 describe("MyPromise", () => {
+    test("race", (done) => {
+        expect.assertions(1);
+        MyPromise.race([
+            new MyPromise((resolve, reject) => setTimeout(resolve, 300)),
+            new MyPromise((resolve, reject) => setTimeout((() => reject("test")), 100)),
+        ])
+            .catch((err: any) => {
+                expect(err).toBe("test");
+                done();
+            });
+    });
+
     test("resolve", (done) => {
         expect.assertions(1);
         let result = "";
