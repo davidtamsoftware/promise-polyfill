@@ -101,6 +101,7 @@ class MyPromise {
                 this.rejectionHandler.push(() => {
                     try {
                         onRejection(this.error);
+                        resolve();
                     } catch (error) {
                         reject(error);
                     }
