@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "parcel src/index.html",
+    "dist": "parcel build src/polyfill.ts",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -12,6 +13,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/jest": "^23.1.6",
+    "@types/node": "^10.5.2",
     "http-server": "^0.11.1",
     "jest": "^23.4.1",
     "parcel": "^1.9.6",

@@ -148,5 +148,3 @@ export class Promise {
         return p;
     }
 }
-
-(window as any).Promise = Promise;
