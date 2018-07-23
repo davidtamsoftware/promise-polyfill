@@ -57,15 +57,15 @@ export class Promise {
         executor(this.resolve, this.reject);
     }
 
-    public then(onFilfillment: any, onRejection?: any) {
+    public then(onFilfillment: (val?: any) => any, onRejection?: (err?: any) => any) {
         return this.createChainedPromise(onFilfillment, onRejection, undefined);
     }
 
-    public catch(onRejection: any) {
+    public catch(onRejection: (err?: any) => any) {
         return this.createChainedPromise(undefined, onRejection, undefined);
     }
 
-    public finally(onFinally: any) {
+    public finally(onFinally: () => any) {
         return this.createChainedPromise(undefined, undefined, onFinally);
     }
 
@@ -99,12 +99,22 @@ export class Promise {
         }
     }
 
+    private resolvePromiseChain(value: Promise, resolve: any) {
+        if (value instanceof Promise) {
+            value.then((val: any) => {
+                this.resolvePromiseChain(val, resolve);
+            });
+        } else {
+            resolve(value);
+        }
+    }
+
     private createChainedPromise(onFilfillment: any, onRejection: any, onFinally: any) {
         const p = new Promise((resolve, reject) => {
             this.fulfillmentHandler.push(() => {
                 try {
                     const value = onFilfillment ? onFilfillment(this.value) : this.value;
-                    resolve(value);
+                    this.resolvePromiseChain(value, resolve);
                 } catch (error) {
                     reject(error);
                 }
@@ -138,3 +148,5 @@ export class Promise {
         return p;
     }
 }
+
+(window as any).Promise = Promise;

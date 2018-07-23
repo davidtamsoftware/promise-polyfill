@@ -32,5 +32,8 @@
       "json",
       "node"
     ]
+  },
+  "dependencies": {
+    "whatwg-fetch": "^2.0.4"
   }
 }

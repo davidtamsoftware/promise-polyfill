@@ -1,4 +1,4 @@
-import { Promise } from "../";
+import { Promise } from "../Promise";
 
 jest.setTimeout(1000);
 describe("Promise", () => {
