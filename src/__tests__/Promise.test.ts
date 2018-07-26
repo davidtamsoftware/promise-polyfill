@@ -38,6 +38,30 @@ describe("Promise", () => {
             });
     });
 
+    test("all (non promises)", (done) => {
+        expect.assertions(1);
+        const p = Promise.all([
+            "a",
+            { test: "testing" },
+            1])
+            .then((result: any) => {
+                expect(result).toMatchObject(["a", { test: "testing" }, 1]);
+                done();
+            });
+    });
+
+    test("all (promises and non promises)", (done) => {
+        expect.assertions(1);
+        const p = Promise.all([
+            "a",
+            new Promise((resolve, reject) => setTimeout(() => resolve(123), 500)),
+            1])
+            .then((result: any) => {
+                expect(result).toMatchObject(["a", 123, 1]);
+                done();
+            });
+    });
+
     test("all (unordered then)", (done) => {
         expect.assertions(1);
         let result = "";

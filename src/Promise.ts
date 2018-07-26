@@ -21,23 +21,31 @@ export class Promise {
         });
     }
 
-    public static all(promises: Promise[]) {
+    public static all(entries: any[]) {
         return new Promise((resolve, reject) => {
-            const promiseCount = promises.length;
+            const count = entries.length;
             let fulfilledPromises = 0;
-            const completedPromiseValues: any[] = [];
-            promises.forEach((promise, index) => {
-                promise
-                    .then((val: any) => {
-                        completedPromiseValues[index] = val;
-                        fulfilledPromises++;
-                        if (fulfilledPromises === promiseCount) {
-                            resolve(completedPromiseValues);
-                        }
-                    })
-                    .catch((err: any) => {
-                        reject(err);
-                    });
+            const resolvedEntries: any[] = [];
+            entries.forEach((entry, index) => {
+                if (entry instanceof Promise) {
+                    entry
+                        .then((val: any) => {
+                            resolvedEntries[index] = val;
+                            fulfilledPromises++;
+                            if (fulfilledPromises === count) {
+                                resolve(resolvedEntries);
+                            }
+                        })
+                        .catch((err: any) => {
+                            reject(err);
+                        });
+                } else {
+                    resolvedEntries[index] = entry;
+                    fulfilledPromises++;
+                    if (fulfilledPromises === count) {
+                        resolve(resolvedEntries);
+                    }
+                }
             });
         });
     }
