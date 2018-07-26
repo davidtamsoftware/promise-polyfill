@@ -1,19 +1,19 @@
 # Promise Polyfill
 
-This is a lightweight promise polyfill written in Typescript. It has less than 120 lines of code. 
+This is a lightweight promise polyfill written in Typescript.
 
-## Installation
+## Building the polyfill
 
-To use this library as a polyfill, run:
+To build the polyfill, run:
 
-`npm install polyfill`
+`npm run dist`
 
-## Demo
+## Running the demo
 
 To launch a sample app that is using this polyfill, run:
 
 `npm run build`
 
-## Unit Tests
+## Unit tests
 
 `npm run test`
