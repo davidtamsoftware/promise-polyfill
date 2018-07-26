@@ -52,9 +52,13 @@ export class Promise {
 
     constructor(executor: (resolve: any, reject: any) => any) {
         this.state = "pending";
-        this.resolve = this.resolve.bind(this);
+        this.resolvePromiseChain = this.resolvePromiseChain.bind(this);
         this.reject = this.reject.bind(this);
-        executor(this.resolve, this.reject);
+        try {
+            executor(this.resolvePromiseChain, this.reject);
+        } catch (error) {
+            this.reject(error);
+        }
     }
 
     public then(onFilfillment: (val?: any) => any, onRejection?: (err?: any) => any) {
@@ -74,6 +78,16 @@ export class Promise {
             this.value = val;
             this.state = "fulfilled";
             this.handleResolve();
+        }
+    }
+
+    private resolvePromiseChain(value: any) {
+        if (value instanceof Promise) {
+            value.then((val: any) => {
+                this.resolvePromiseChain(val);
+            });
+        } else {
+            this.resolve(value);
         }
     }
 
@@ -99,22 +113,12 @@ export class Promise {
         }
     }
 
-    private resolvePromiseChain(value: Promise, resolve: any) {
-        if (value instanceof Promise) {
-            value.then((val: any) => {
-                this.resolvePromiseChain(val, resolve);
-            });
-        } else {
-            resolve(value);
-        }
-    }
-
     private createChainedPromise(onFilfillment: any, onRejection: any, onFinally: any) {
         const p = new Promise((resolve, reject) => {
             this.fulfillmentHandler.push(() => {
                 try {
                     const value = onFilfillment ? onFilfillment(this.value) : this.value;
-                    this.resolvePromiseChain(value, resolve);
+                    resolve(value);
                 } catch (error) {
                     reject(error);
                 }
