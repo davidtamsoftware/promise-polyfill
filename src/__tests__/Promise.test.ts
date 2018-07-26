@@ -2,7 +2,7 @@ import { Promise } from "../Promise";
 
 jest.setTimeout(1000);
 describe("Promise", () => {
-    test("race", (done) => {
+    test("race (promises)", (done) => {
         expect.assertions(1);
         Promise.race([
             new Promise((resolve, reject) => setTimeout(resolve, 300)),
@@ -10,6 +10,27 @@ describe("Promise", () => {
         ])
             .catch((err: any) => {
                 expect(err).toBe("test");
+                done();
+            });
+    });
+
+    test("race (non promises)", (done) => {
+        expect.assertions(1);
+        Promise.race([1, 2])
+            .then((value: any) => {
+                expect(value).toBe(1);
+                done();
+            });
+    });
+
+    test("race (some promises and non promises)", (done) => {
+        expect.assertions(1);
+        Promise.race([
+            new Promise((resolve, reject) => setTimeout(resolve, 300)),
+            "test",
+        ])
+            .then((value: any) => {
+                expect(value).toBe("test");
                 done();
             });
     });
@@ -50,7 +71,7 @@ describe("Promise", () => {
             });
     });
 
-    test("all (promises and non promises)", (done) => {
+    test("all (some promises and non promises)", (done) => {
         expect.assertions(1);
         const p = Promise.all([
             "a",

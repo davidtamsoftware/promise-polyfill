@@ -7,16 +7,20 @@ export class Promise {
     private fulfillmentHandler: any[] = [];
     private rejectionHandler: any[] = [];
 
-    public static race(promises: Promise[]) {
+    public static race(entries: any[]) {
         return new Promise((resolve, reject) => {
-            promises.forEach((promise) => {
-                promise
-                    .then((val: any) => {
-                        resolve(val);
-                    })
-                    .catch((err: any) => {
-                        reject(err);
-                    });
+            entries.forEach((entry) => {
+                if (entry instanceof Promise) {
+                    entry
+                        .then((val: any) => {
+                            resolve(val);
+                        })
+                        .catch((err: any) => {
+                            reject(err);
+                        });
+                } else {
+                    resolve(entry);
+                }
             });
         });
     }
