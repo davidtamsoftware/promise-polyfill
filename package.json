@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
     "build": "parcel src/demo/index.html",
     "clean": "rimraf dist",
-    "predist": "npm run clean",
+    "lint": "tslint -p .",
+    "predist": "npm run clean && npm run lint",
     "dist": "parcel build src/polyfill.ts",
     "test": "jest",
     "test:watch": "jest --watch"
