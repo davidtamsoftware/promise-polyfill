@@ -123,18 +123,19 @@ export class Promise {
         const p = new Promise((resolve, reject) => {
             this.fulfillmentHandler.push(() => {
                 try {
-                    const value = onFilfillment ? onFilfillment(this.value) : this.value;
+                    const value = (onFilfillment && onFilfillment instanceof Function) ?
+                        onFilfillment(this.value) : this.value;
                     resolve(value);
                 } catch (error) {
                     reject(error);
                 }
             });
 
-            if (onRejection) {
+            if (onRejection && onRejection instanceof Function) {
                 this.rejectionHandler.push(() => {
                     try {
-                        onRejection(this.error);
-                        resolve();
+                        const value = onRejection(this.error);
+                        resolve(value);
                     } catch (error) {
                         reject(error);
                     }
