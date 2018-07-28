@@ -64,10 +64,10 @@ export class Promise {
 
     constructor(executor: (resolve: any, reject: any) => any) {
         this.state = "pending";
-        this.resolvePromiseChain = this.resolvePromiseChain.bind(this);
+        this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
         try {
-            executor(this.resolvePromiseChain, this.reject);
+            executor(this.resolve, this.reject);
         } catch (error) {
             this.reject(error);
         }
@@ -85,21 +85,15 @@ export class Promise {
         return this.createChainedPromise(undefined, undefined, onFinally);
     }
 
-    private resolve(val: any) {
-        if (this.state === "pending") {
-            this.value = val;
-            this.state = "fulfilled";
-            this.handleResolve();
-        }
-    }
-
-    private resolvePromiseChain(value: any) {
+    private resolve(value: any) {
         if (value instanceof Promise) {
             value.then((val: any) => {
-                this.resolvePromiseChain(val);
+                this.resolve(val);
             });
-        } else {
-            this.resolve(value);
+        } else if (this.state === "pending") {
+            this.value = value;
+            this.state = "fulfilled";
+            this.handleResolve();
         }
     }
 
