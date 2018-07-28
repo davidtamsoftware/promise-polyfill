@@ -17,3 +17,9 @@ To launch a sample app that is using this polyfill, run:
 ## Unit tests
 
 `npm run test`
+
+## Installing the polyfill to a project
+
+Install the dependency by running:
+
+`npm install --save promise
