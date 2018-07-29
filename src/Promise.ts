@@ -1,23 +1,19 @@
 type State = "pending" | "fulfilled" | "rejected";
+type SingleArgCallback = (arg?: any) => any;
+type NoArgCallback = () => any;
 
 export class Promise {
     private state: State;
     private value: any;
     private error: any;
-    private fulfillmentHandler: any[] = [];
-    private rejectionHandler: any[] = [];
+    private fulfillmentHandlers: any[] = [];
+    private rejectionHandlers: any[] = [];
 
     public static race(entries: any[]) {
         return new Promise((resolve, reject) => {
             entries.forEach((entry) => {
                 if (entry instanceof Promise) {
-                    entry
-                        .then((val: any) => {
-                            resolve(val);
-                        })
-                        .catch((err: any) => {
-                            reject(err);
-                        });
+                    entry.then((val) => resolve(val), (err) => reject(err));
                 } else {
                     resolve(entry);
                 }
@@ -32,15 +28,15 @@ export class Promise {
             const resolvedEntries: any[] = [];
             entries.forEach((entry, index) => {
                 if (entry instanceof Promise) {
-                    entry
-                        .then((val: any) => {
+                    entry.then(
+                        (val) => {
                             resolvedEntries[index] = val;
                             fulfilledPromises++;
                             if (fulfilledPromises === count) {
                                 resolve(resolvedEntries);
                             }
-                        })
-                        .catch((err: any) => {
+                        },
+                        (err) => {
                             reject(err);
                         });
                 } else {
@@ -73,23 +69,24 @@ export class Promise {
         }
     }
 
-    public then(onFilfillment: (val?: any) => any, onRejection?: (err?: any) => any) {
-        return this.createChainedPromise(onFilfillment, onRejection, undefined);
+    public then(onFulfillment?: SingleArgCallback, onRejection?: SingleArgCallback) {
+        return this.createChainedPromise(onFulfillment, onRejection, undefined);
     }
 
-    public catch(onRejection: (err?: any) => any) {
+    public catch(onRejection: SingleArgCallback) {
         return this.createChainedPromise(undefined, onRejection, undefined);
     }
 
-    public finally(onFinally: () => any) {
+    public finally(onFinally: NoArgCallback) {
         return this.createChainedPromise(undefined, undefined, onFinally);
     }
 
     private resolve(value: any) {
-        if (value instanceof Promise) {
-            value.then((val: any) => {
-                this.resolve(val);
-            });
+        if (value && value.then instanceof Function) {
+            if (value === this) {
+                throw new TypeError("circular reference detected");
+            }
+            value.then((val: any) => this.resolve(val), (err: any) => this.reject(err));
         } else if (this.state === "pending") {
             this.value = value;
             this.state = "fulfilled";
@@ -106,25 +103,34 @@ export class Promise {
     }
 
     private handleResolve() {
-        while (this.fulfillmentHandler.length > 0) {
-            const handler = this.fulfillmentHandler.shift().bind(this);
+        while (this.fulfillmentHandlers.length > 0) {
+            const handler = this.fulfillmentHandlers.shift().bind(this);
             setTimeout(handler, 0);
         }
     }
 
     private handleReject() {
-        while (this.rejectionHandler.length > 0) {
-            const handler = this.rejectionHandler.shift().bind(this);
+        while (this.rejectionHandlers.length > 0) {
+            const handler = this.rejectionHandlers.shift().bind(this);
             setTimeout(handler, 0);
         }
     }
 
-    private createChainedPromise(onFilfillment: any, onRejection: any, onFinally: any) {
+    private createChainedPromise(
+        onFulfillment?: SingleArgCallback, onRejection?: SingleArgCallback, onFinally?: NoArgCallback) {
         const p = new Promise((resolve, reject) => {
-            this.fulfillmentHandler.push(() => {
+            this.fulfillmentHandlers.push(() => {
                 try {
-                    const value = (onFilfillment && onFilfillment instanceof Function) ?
-                        onFilfillment(this.value) : this.value;
+                    let value;
+                    if (!onFulfillment) {
+                        value = this.value;
+                    } else if (onFulfillment instanceof Function) {
+                        value = onFulfillment(this.value);
+                    } else if ((onFulfillment as any).then instanceof Function) {
+                        value = onFulfillment;
+                    } else {
+                        value = this.value;
+                    }
                     resolve(value);
                 } catch (error) {
                     reject(error);
@@ -132,7 +138,7 @@ export class Promise {
             });
 
             if (onRejection && onRejection instanceof Function) {
-                this.rejectionHandler.push(() => {
+                this.rejectionHandlers.push(() => {
                     try {
                         const value = onRejection(this.error);
                         resolve(value);
@@ -141,12 +147,12 @@ export class Promise {
                     }
                 });
             } else {
-                this.rejectionHandler.push(() => reject(this.error));
+                this.rejectionHandlers.push(() => reject(this.error));
             }
 
             if (onFinally) {
-                this.fulfillmentHandler.push(onFinally);
-                this.rejectionHandler.push(onFinally);
+                this.fulfillmentHandlers.push(onFinally);
+                this.rejectionHandlers.push(onFinally);
             }
         });
 
