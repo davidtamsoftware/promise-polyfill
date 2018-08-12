@@ -60,20 +60,25 @@ export class Promise {
         this.state = "pending";
         this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
+
+        // indicator used to ignore subsequent calls to resolve or reject
         let resolveInProgress = false;
+
         try {
             const chain: any[] = [];
             chain.push(this);
-            executor((val: any) => {
-                if (!resolveInProgress) {
-                    resolveInProgress = true;
-                    this.resolveChain(val, this.resolve, this.reject, chain);
-                }
-            }, ((val: any) => {
-                if (!resolveInProgress) {
-                    this.reject(val);
-                }
-            }));
+            executor(
+                (val: any) => {
+                    if (!resolveInProgress) {
+                        resolveInProgress = true;
+                        this.resolveChain(val, this.resolve, this.reject, chain);
+                    }
+                },
+                (val: any) => {
+                    if (!resolveInProgress) {
+                        this.reject(val);
+                    }
+                });
         } catch (error) {
             if (!resolveInProgress) {
                 this.reject(error);
@@ -124,47 +129,47 @@ export class Promise {
     }
 
     private isThenable(value: any) {
-        let isThenable = false;
-
-        if (value && typeof value === "object" || typeof value === "function") {
-            const prop = Object.getOwnPropertyDescriptor(value, "then");
-            isThenable = value instanceof Promise ||
-                (!!prop && (typeof prop.get === "function" ||
-                    typeof prop.value === "function"));
+        if (value instanceof Promise) {
+            return true;
         }
 
-        return isThenable;
+        // custom thenable
+        if (value && typeof value === "object" || typeof value === "function") {
+            const prop = Object.getOwnPropertyDescriptor(value, "then");
+            return !!prop && (typeof prop.get === "function" || typeof prop.value === "function");
+        }
+
+        return false;
     }
 
     private resolveChain(value: any, resolve: any, reject: any, chain: any[]) {
-        try {
-            if (chain.indexOf(value) >= 0) {
-                throw new TypeError("circular reference detected");
-            }
-            if (this.isThenable(value)) {
-                chain.push(value);
+        if (chain.indexOf(value) >= 0) {
+            throw new TypeError("circular reference detected");
+        }
 
-                if (value instanceof Promise) {
-                    value.then(
-                        (a: any) => this.resolveChain(a, resolve, reject, chain),
-                        (a: any) => reject(a));
-                } else {
-                    const p = new Promise((res, rej) => value.then(res, rej));
-                    p.then(
-                        (a: any) => this.resolveChain(a, resolve, reject, chain),
-                        (a: any) => reject(a));
-                }
+        if (this.isThenable(value)) {
+            chain.push(value);
+
+            let p;
+            if (value instanceof Promise) {
+                p = value;
             } else {
-                resolve(value);
+                // wrap custom thenable into a promise
+                p = new Promise((res, rej) => value.then(res, rej));
             }
-        } catch (error) {
-            reject(error);
+
+            p.then((a: any) => this.resolveChain(a, resolve, reject, chain), reject);
+        } else {
+            resolve(value);
         }
     }
 
     private createChainedPromise(
         onFulfillment?: SingleArgCallback, onRejection?: SingleArgCallback, onFinally?: NoArgCallback) {
+
         const p = new Promise((resolve, reject) => {
+            // add then handler to current promise handler array, and when it is executed, trigger the chained
+            // exception's resolve which will trigger it's own handlers, and work its way through the chain
             this.fulfillmentHandlers.push(() => {
                 try {
                     const chain = [];
@@ -176,6 +181,8 @@ export class Promise {
                 }
             });
 
+            // add catch handler to current promise handler array, and when it is executed, trigger the chained
+            // exception's resolve which will trigger it's own handlers, and work its way through the chain
             this.rejectionHandlers.push(() => {
                 try {
                     if (onRejection instanceof Function) {
