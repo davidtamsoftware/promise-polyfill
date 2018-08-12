@@ -13,7 +13,7 @@ export class Promise {
         return new Promise((resolve, reject) => {
             entries.forEach((entry) => {
                 if (entry instanceof Promise) {
-                    entry.then((val) => resolve(val), (err) => reject(err));
+                    entry.then(resolve, reject);
                 } else {
                     resolve(entry);
                 }
@@ -36,9 +36,7 @@ export class Promise {
                                 resolve(resolvedEntries);
                             }
                         },
-                        (err) => {
-                            reject(err);
-                        });
+                        reject);
                 } else {
                     resolvedEntries[index] = entry;
                     fulfilledPromises++;
@@ -58,14 +56,28 @@ export class Promise {
         return new Promise((resolve, reject) => reject(err));
     }
 
-    constructor(executor: (resolve: any, reject: any) => any) {
+    constructor(executor: (resolve: SingleArgCallback, reject: SingleArgCallback) => any) {
         this.state = "pending";
         this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
+        let resolveInProgress = false;
         try {
-            executor(this.resolve, this.reject);
+            const chain: any[] = [];
+            chain.push(this);
+            executor((val: any) => {
+                if (!resolveInProgress) {
+                    resolveInProgress = true;
+                    this.resolveChain(val, this.resolve, this.reject, chain);
+                }
+            }, ((val: any) => {
+                if (!resolveInProgress) {
+                    this.reject(val);
+                }
+            }));
         } catch (error) {
-            this.reject(error);
+            if (!resolveInProgress) {
+                this.reject(error);
+            }
         }
     }
 
@@ -82,12 +94,7 @@ export class Promise {
     }
 
     private resolve(value: any) {
-        if (value && value.then instanceof Function) {
-            if (value === this) {
-                throw new TypeError("circular reference detected");
-            }
-            value.then((val: any) => this.resolve(val), (err: any) => this.reject(err));
-        } else if (this.state === "pending") {
+        if (this.state === "pending") {
             this.value = value;
             this.state = "fulfilled";
             this.handleResolve();
@@ -104,15 +111,54 @@ export class Promise {
 
     private handleResolve() {
         while (this.fulfillmentHandlers.length > 0) {
-            const handler = this.fulfillmentHandlers.shift().bind(this);
+            const handler = this.fulfillmentHandlers.shift();
             setTimeout(handler, 0);
         }
     }
 
     private handleReject() {
         while (this.rejectionHandlers.length > 0) {
-            const handler = this.rejectionHandlers.shift().bind(this);
+            const handler = this.rejectionHandlers.shift();
             setTimeout(handler, 0);
+        }
+    }
+
+    private isThenable(value: any) {
+        let isThenable = false;
+
+        if (value && typeof value === "object" || typeof value === "function") {
+            const prop = Object.getOwnPropertyDescriptor(value, "then");
+            isThenable = value instanceof Promise ||
+                (!!prop && (typeof prop.get === "function" ||
+                    typeof prop.value === "function"));
+        }
+
+        return isThenable;
+    }
+
+    private resolveChain(value: any, resolve: any, reject: any, chain: any[]) {
+        try {
+            if (chain.indexOf(value) >= 0) {
+                throw new TypeError("circular reference detected");
+            }
+            if (this.isThenable(value)) {
+                chain.push(value);
+
+                if (value instanceof Promise) {
+                    value.then(
+                        (a: any) => this.resolveChain(a, resolve, reject, chain),
+                        (a: any) => reject(a));
+                } else {
+                    const p = new Promise((res, rej) => value.then(res, rej));
+                    p.then(
+                        (a: any) => this.resolveChain(a, resolve, reject, chain),
+                        (a: any) => reject(a));
+                }
+            } else {
+                resolve(value);
+            }
+        } catch (error) {
+            reject(error);
         }
     }
 
@@ -121,34 +167,29 @@ export class Promise {
         const p = new Promise((resolve, reject) => {
             this.fulfillmentHandlers.push(() => {
                 try {
-                    let value;
-                    if (!onFulfillment) {
-                        value = this.value;
-                    } else if (onFulfillment instanceof Function) {
-                        value = onFulfillment(this.value);
-                    } else if ((onFulfillment as any).then instanceof Function) {
-                        value = onFulfillment;
-                    } else {
-                        value = this.value;
-                    }
-                    resolve(value);
+                    const chain = [];
+                    chain.push(p);
+                    const value = onFulfillment instanceof Function ? onFulfillment(this.value) : this.value;
+                    this.resolveChain(value, resolve, reject, chain);
                 } catch (error) {
                     reject(error);
                 }
             });
 
-            if (onRejection && onRejection instanceof Function) {
-                this.rejectionHandlers.push(() => {
-                    try {
+            this.rejectionHandlers.push(() => {
+                try {
+                    if (onRejection instanceof Function) {
+                        const chain = [];
+                        chain.push(p);
                         const value = onRejection(this.error);
-                        resolve(value);
-                    } catch (error) {
-                        reject(error);
+                        this.resolveChain(value, resolve, reject, chain);
+                    } else {
+                        reject(this.error);
                     }
-                });
-            } else {
-                this.rejectionHandlers.push(() => reject(this.error));
-            }
+                } catch (error) {
+                    reject(error);
+                }
+            });
 
             if (onFinally) {
                 this.fulfillmentHandlers.push(onFinally);
