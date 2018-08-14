@@ -151,7 +151,6 @@ export class Promise<T> implements Thenable<T> {
         }
     }
 
-
     private resolveChain<U, V>(
         value: U | Thenable<U> | undefined,
         resolve: SingleArgCallback<U, V>,
