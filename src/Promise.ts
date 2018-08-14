@@ -18,6 +18,10 @@ export class Promise<T> implements Thenable<T> {
             entries.forEach((entry) => {
                 if (entry instanceof Promise) {
                     entry.then(resolve, reject);
+                } else if (Promise.isThenable(entry)) {
+                    new Promise<T>(
+                        (res, rej) => (entry as Thenable<T>).then(res, rej))
+                        .then(resolve, reject);
                 } else {
                     resolve(entry as T | undefined);
                 }
@@ -42,6 +46,10 @@ export class Promise<T> implements Thenable<T> {
             entries.forEach((entry, index) => {
                 if (entry instanceof Promise) {
                     entry.then((val) => resolveIfComplete(index, val), reject);
+                } else if (Promise.isThenable(entry)) {
+                    new Promise<T>(
+                        (res, rej) => (entry as Thenable<T>).then(res, rej))
+                        .then((val) => resolveIfComplete(index, val), reject);
                 } else {
                     resolveIfComplete(index, entry);
                 }
@@ -55,6 +63,20 @@ export class Promise<T> implements Thenable<T> {
 
     public static reject<T>(err: T): Promise<T> {
         return new Promise((resolve, reject) => reject(err));
+    }
+
+    private static isThenable(value: any) {
+        if (value instanceof Promise) {
+            return true;
+        }
+
+        // custom thenable
+        if (value && typeof value === "object" || typeof value === "function") {
+            const prop = Object.getOwnPropertyDescriptor(value, "then");
+            return !!prop && (typeof prop.get === "function" || typeof prop.value === "function");
+        }
+
+        return false;
     }
 
     constructor(executor: (resolve: SingleArgCallback<T, void>, reject: SingleArgCallback<any, void>) => any) {
@@ -78,8 +100,8 @@ export class Promise<T> implements Thenable<T> {
                         this.reject(val);
                     }
                 });
-        } catch (error) {
-            if (!resolveInProgress) {
+            } catch (error) {
+                if (!resolveInProgress) {
                 this.reject(error);
             }
         }
@@ -129,19 +151,6 @@ export class Promise<T> implements Thenable<T> {
         }
     }
 
-    private isThenable(value: any) {
-        if (value instanceof Promise) {
-            return true;
-        }
-
-        // custom thenable
-        if (value && typeof value === "object" || typeof value === "function") {
-            const prop = Object.getOwnPropertyDescriptor(value, "then");
-            return !!prop && (typeof prop.get === "function" || typeof prop.value === "function");
-        }
-
-        return false;
-    }
 
     private resolveChain<U, V>(
         value: U | Thenable<U> | undefined,
@@ -152,7 +161,7 @@ export class Promise<T> implements Thenable<T> {
             throw new TypeError("circular reference detected");
         }
 
-        if (this.isThenable(value)) {
+        if (Promise.isThenable(value)) {
             chain.push(value);
 
             let p: Promise<U | Thenable<U>>;
