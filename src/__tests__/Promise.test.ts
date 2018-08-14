@@ -135,7 +135,7 @@ describe("Promise", () => {
             .then((arg: any) => result += `2.1:${arg};`)
             .finally(() => result += `2.2:finally;`);
 
-        Promise.all([p3, chain1, chain2]).then(() => {
+        Promise.all<any>([p3, chain1, chain2]).then(() => {
             expect(result).toBe("1:1;2:2;3:1,2;1.1:finally;2.1:1:1;2:2;;2.2:finally;");
             done();
         });
@@ -160,7 +160,7 @@ describe("Promise", () => {
             .then((arg: any) => result += `2.1:${arg};`)
             .finally(() => result += `2.2:finally;`);
 
-        Promise.all([chain1, chain2, p3]).then(() => {
+        Promise.all<any>([chain1, chain2, p3]).then(() => {
             expect(result).toBe("1:1;2:2;3:1,2;1.1:finally;2.1:1:1;2:2;;2.2:finally;");
             done();
         });
@@ -186,7 +186,7 @@ describe("Promise", () => {
             .then((arg: any) => result += `3:${arg};`)
             .catch(() => ({}));
 
-        Promise.all([chain1, chain2, p3])
+        Promise.all<any>([chain1, chain2, p3])
             .then(() => {
                 expect(result).toBe("1:1;2:2;3:1,2;1.1:finally;2.1:1:1;2:2;;2.2:finally;");
                 done();
@@ -264,7 +264,7 @@ describe("Promise", () => {
     test("all with error", (done) => {
         expect.assertions(1);
         let result = "";
-        const p = Promise.all([
+        const p = Promise.all<any>([
             Promise.reject("ERROR"),
             Promise.resolve(1),
         ]);
