@@ -11,7 +11,7 @@
     "clean": "rimraf dist build",
     "lint": "tslint -p .",
     "predist": "npm run clean && npm run lint",
-    "dist": "parcel build src/polyfill.ts",
+    "dist": "parcel build --global Promise src/polyfill.ts",
     "test": "jest",
     "test:aplus": "tsc && promises-aplus-tests build/__tests__/adapter.js",
     "test:watch": "jest --watch"
@@ -44,7 +44,5 @@
       "node"
     ]
   },
-  "dependencies": {
-    "whatwg-fetch": "^2.0.4"
-  }
+  "dependencies": {}
 }

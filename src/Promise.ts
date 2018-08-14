@@ -6,8 +6,8 @@ export class Promise {
     private state: State;
     private value: any;
     private error: any;
-    private fulfillmentHandlers: any[] = [];
-    private rejectionHandlers: any[] = [];
+    private fulfillmentHandlers: SingleArgCallback[] = [];
+    private rejectionHandlers: SingleArgCallback[] = [];
 
     public static race(entries: any[]) {
         return new Promise((resolve, reject) => {
@@ -26,23 +26,20 @@ export class Promise {
             const count = entries.length;
             let fulfilledPromises = 0;
             const resolvedEntries: any[] = [];
+
+            const resolveIfComplete = (index: number, val: any) => {
+                resolvedEntries[index] = val;
+                fulfilledPromises++;
+                if (fulfilledPromises === count) {
+                    resolve(resolvedEntries);
+                }
+            };
+
             entries.forEach((entry, index) => {
                 if (entry instanceof Promise) {
-                    entry.then(
-                        (val) => {
-                            resolvedEntries[index] = val;
-                            fulfilledPromises++;
-                            if (fulfilledPromises === count) {
-                                resolve(resolvedEntries);
-                            }
-                        },
-                        reject);
+                    entry.then((val) => resolveIfComplete(index, val), reject);
                 } else {
-                    resolvedEntries[index] = entry;
-                    fulfilledPromises++;
-                    if (fulfilledPromises === count) {
-                        resolve(resolvedEntries);
-                    }
+                    resolveIfComplete(index, entry);
                 }
             });
         });
@@ -65,16 +62,14 @@ export class Promise {
         let resolveInProgress = false;
 
         try {
-            const chain: any[] = [];
-            chain.push(this);
             executor(
-                (val: any) => {
+                (val) => {
                     if (!resolveInProgress) {
                         resolveInProgress = true;
-                        this.resolveChain(val, this.resolve, this.reject, chain);
+                        this.resolveChain(val, this.resolve, this.reject, [this]);
                     }
                 },
-                (val: any) => {
+                (val) => {
                     if (!resolveInProgress) {
                         this.reject(val);
                     }
@@ -142,7 +137,7 @@ export class Promise {
         return false;
     }
 
-    private resolveChain(value: any, resolve: any, reject: any, chain: any[]) {
+    private resolveChain(value: any, resolve: SingleArgCallback, reject: SingleArgCallback, chain: any[]) {
         if (chain.indexOf(value) >= 0) {
             throw new TypeError("circular reference detected");
         }
@@ -158,7 +153,7 @@ export class Promise {
                 p = new Promise((res, rej) => value.then(res, rej));
             }
 
-            p.then((a: any) => this.resolveChain(a, resolve, reject, chain), reject);
+            p.then((a) => this.resolveChain(a, resolve, reject, chain), reject);
         } else {
             resolve(value);
         }
@@ -169,27 +164,23 @@ export class Promise {
 
         const p = new Promise((resolve, reject) => {
             // add then handler to current promise handler array, and when it is executed, trigger the chained
-            // exception's resolve which will trigger it's own handlers, and work its way through the chain
+            // promise's resolve which will trigger it's own handlers, and work its way through the chain
             this.fulfillmentHandlers.push(() => {
                 try {
-                    const chain = [];
-                    chain.push(p);
                     const value = onFulfillment instanceof Function ? onFulfillment(this.value) : this.value;
-                    this.resolveChain(value, resolve, reject, chain);
+                    this.resolveChain(value, resolve, reject, [this, p]);
                 } catch (error) {
                     reject(error);
                 }
             });
 
             // add catch handler to current promise handler array, and when it is executed, trigger the chained
-            // exception's resolve which will trigger it's own handlers, and work its way through the chain
+            // promise's resolve which will trigger it's own handlers, and work its way through the chain
             this.rejectionHandlers.push(() => {
                 try {
                     if (onRejection instanceof Function) {
-                        const chain = [];
-                        chain.push(p);
                         const value = onRejection(this.error);
-                        this.resolveChain(value, resolve, reject, chain);
+                        this.resolveChain(value, resolve, reject, [this, p]);
                     } else {
                         reject(this.error);
                     }
