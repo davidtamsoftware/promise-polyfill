@@ -1,17 +1,18 @@
 type State = "pending" | "fulfilled" | "rejected";
-type SingleArgCallback<T, U> = (arg?: T) => U;
+type SingleArgCallback<T, U> = (arg: T) => U;
 type NoArgCallback = () => any;
-
+type FulfillmentHandler<T, U> = SingleArgCallback<T | Thenable<T>, U | Thenable<U>>;
+type RejectionHandler<U> = SingleArgCallback<any, U | Thenable<U>>;
 interface Thenable<T> {
-    then<U>(resolve: SingleArgCallback<T, any>, reject?: SingleArgCallback<T, any>): U | Thenable<U>;
+    then<U>(resolve: FulfillmentHandler<T, U>, reject: RejectionHandler<U>): any;
 }
 
 export class Promise<T> implements Thenable<T> {
     private state: State;
-    private value: T | undefined;
+    private value?: T;
     private error: any;
-    private fulfillmentHandlers: Array<SingleArgCallback<T, any>> = [];
-    private rejectionHandlers: Array<SingleArgCallback<T, any>> = [];
+    private fulfillmentHandlers: Array<FulfillmentHandler<T, any>> = [];
+    private rejectionHandlers: Array<RejectionHandler<any>> = [];
 
     public static race<T>(entries: Array<T | Thenable<T>>): Promise<T> {
         return new Promise((resolve, reject) => {
@@ -23,7 +24,7 @@ export class Promise<T> implements Thenable<T> {
                         (res, rej) => (entry as Thenable<T>).then(res, rej))
                         .then(resolve, reject);
                 } else {
-                    resolve(entry as T | undefined);
+                    resolve(entry as T);
                 }
             });
         });
@@ -57,11 +58,11 @@ export class Promise<T> implements Thenable<T> {
         });
     }
 
-    public static resolve<T>(value: T): Promise<T> {
+    public static resolve<T>(value: T | Thenable<T>): Promise<T> {
         return new Promise((resolve, reject) => resolve(value));
     }
 
-    public static reject<T>(err: T): Promise<T> {
+    public static reject<T>(err: T | Thenable<T>): Promise<T> {
         return new Promise((resolve, reject) => reject(err));
     }
 
@@ -79,7 +80,8 @@ export class Promise<T> implements Thenable<T> {
         return false;
     }
 
-    constructor(executor: (resolve: SingleArgCallback<T, void>, reject: SingleArgCallback<any, void>) => any) {
+    constructor(
+        executor: (resolve: FulfillmentHandler<T, void>, reject: RejectionHandler<void>) => any) {
         this.state = "pending";
         this.resolve = this.resolve.bind(this);
         this.reject = this.reject.bind(this);
@@ -108,12 +110,13 @@ export class Promise<T> implements Thenable<T> {
     }
 
     public then<U>(
-        onFulfillment?: SingleArgCallback<T, U | Thenable<U>>,
-        onRejection?: SingleArgCallback<any, U | Thenable<U>>): Promise<U> {
+        onFulfillment?: FulfillmentHandler<T, U>,
+        onRejection?: RejectionHandler<U>): Promise<U> {
+
         return this.createChainedPromise(onFulfillment, onRejection, undefined);
     }
 
-    public catch<U>(onRejection: SingleArgCallback<T, U>): Promise<U> {
+    public catch<U>(onRejection: RejectionHandler<U>): Promise<U> {
         return this.createChainedPromise(undefined, onRejection, undefined);
     }
 
@@ -152,10 +155,11 @@ export class Promise<T> implements Thenable<T> {
     }
 
     private resolveChain<U, V>(
-        value: U | Thenable<U> | undefined,
-        resolve: SingleArgCallback<U, V>,
+        value: U | Thenable<U>,
+        resolve: SingleArgCallback<U, void>,
         reject: SingleArgCallback<any, void>,
         chain: any[]) {
+
         if (chain.indexOf(value) >= 0) {
             throw new TypeError("circular reference detected");
         }
@@ -163,12 +167,12 @@ export class Promise<T> implements Thenable<T> {
         if (Promise.isThenable(value)) {
             chain.push(value);
 
-            let p: Promise<U | Thenable<U>>;
+            let p: Promise<U>;
             if (value instanceof Promise) {
                 p = value;
             } else {
                 // wrap custom thenable into a promise
-                p = new Promise<U | Thenable<U>>((res, rej) => (value as Thenable<U>).then(res, rej));
+                p = new Promise<U>((res, rej) => (value as Thenable<U>).then(res, rej));
             }
 
             p.then<void>((a) => this.resolveChain(a, resolve, reject, chain), reject);
@@ -178,8 +182,8 @@ export class Promise<T> implements Thenable<T> {
     }
 
     private createChainedPromise<U>(
-        onFulfillment?: SingleArgCallback<T, U | Thenable<U>>,
-        onRejection?: SingleArgCallback<any, U | Thenable<U>>,
+        onFulfillment?: FulfillmentHandler<T, U>,
+        onRejection?: RejectionHandler<U>,
         onFinally?: NoArgCallback): Promise<U> {
 
         const p = new Promise<U>((resolve, reject) => {
@@ -187,7 +191,7 @@ export class Promise<T> implements Thenable<T> {
             // promise's resolve which will trigger it's own handlers, and work its way through the chain
             this.fulfillmentHandlers.push(() => {
                 try {
-                    const value = onFulfillment instanceof Function ? onFulfillment(this.value) : this.value;
+                    const value = onFulfillment instanceof Function ? onFulfillment(this.value as T) : this.value;
                     this.resolveChain(value as any, resolve, reject, [this, p]);
                 } catch (error) {
                     reject(error);
