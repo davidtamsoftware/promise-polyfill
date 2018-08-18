@@ -94,18 +94,21 @@ export class Promise<T> implements Thenable<T> {
             executor(
                 (val) => {
                     if (!executed) {
-                        this.resolveChain(val, this.resolve, this.reject, [this]);
                         executed = true;
+                        this.resolveChain(val, this.resolve, this.reject, [this]);
                     }
                 },
                 (val) => {
                     if (!executed) {
-                        this.reject(val);
                         executed = true;
+                        this.reject(val);
                     }
                 });
         } catch (error) {
-            this.reject(error);
+            if (!executed) {
+                executed = true;
+                this.reject(error);
+            }
         }
     }
 
@@ -124,19 +127,15 @@ export class Promise<T> implements Thenable<T> {
     }
 
     private resolve(value: T | undefined) {
-        if (this.state === "pending") {
-            this.value = value;
-            this.state = "fulfilled";
-            this.handleResolve();
-        }
+        this.value = value;
+        this.state = "fulfilled";
+        this.handleResolve();
     }
 
     private reject(err: any) {
-        if (this.state === "pending") {
-            this.error = err;
-            this.state = "rejected";
-            this.handleReject();
-        }
+        this.error = err;
+        this.state = "rejected";
+        this.handleReject();
     }
 
     private handleResolve() {
