@@ -3,6 +3,7 @@ type SingleArgCallback<T, U> = (arg: T) => U;
 type NoArgCallback = () => any;
 type FulfillmentHandler<T, U> = SingleArgCallback<T | Thenable<T>, U | Thenable<U>>;
 type RejectionHandler<U> = SingleArgCallback<any, U | Thenable<U>>;
+
 interface Thenable<T> {
     then<U>(resolve: FulfillmentHandler<T, U>, reject: RejectionHandler<U>): any;
 }
@@ -11,8 +12,8 @@ export class Promise<T> implements Thenable<T> {
     private state: State;
     private value?: T;
     private error: any;
-    private fulfillmentHandlers: Array<FulfillmentHandler<T, any>> = [];
-    private rejectionHandlers: Array<RejectionHandler<any>> = [];
+    private fulfillmentHandlers: Array<FulfillmentHandler<T, void>> = [];
+    private rejectionHandlers: Array<RejectionHandler<void>> = [];
 
     public static race<T>(entries: Array<T | Thenable<T>>): Promise<T> {
         return new Promise((resolve, reject) => {
@@ -36,7 +37,7 @@ export class Promise<T> implements Thenable<T> {
             let fulfilledPromises = 0;
             const resolvedEntries: any[] = [];
 
-            const resolveIfComplete = (index: number, val: any) => {
+            const resolveIfComplete = (index: number, val: T | Thenable<T>) => {
                 resolvedEntries[index] = val;
                 fulfilledPromises++;
                 if (fulfilledPromises === count) {
@@ -87,32 +88,30 @@ export class Promise<T> implements Thenable<T> {
         this.reject = this.reject.bind(this);
 
         // indicator used to ignore subsequent calls to resolve or reject
-        let resolveInProgress = false;
+        let executed = false;
 
         try {
             executor(
                 (val) => {
-                    if (!resolveInProgress) {
-                        resolveInProgress = true;
+                    if (!executed) {
                         this.resolveChain(val, this.resolve, this.reject, [this]);
+                        executed = true;
                     }
                 },
                 (val) => {
-                    if (!resolveInProgress) {
+                    if (!executed) {
                         this.reject(val);
+                        executed = true;
                     }
                 });
-            } catch (error) {
-                if (!resolveInProgress) {
-                this.reject(error);
-            }
+        } catch (error) {
+            this.reject(error);
         }
     }
 
     public then<U>(
         onFulfillment?: FulfillmentHandler<T, U>,
         onRejection?: RejectionHandler<U>): Promise<U> {
-
         return this.createChainedPromise(onFulfillment, onRejection, undefined);
     }
 

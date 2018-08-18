@@ -11,10 +11,11 @@
     "clean": "rimraf dist build",
     "lint": "tslint -p .",
     "predist": "npm run clean && npm run lint",
-    "dist": "parcel build --global Promise src/polyfill.ts",
-    "test": "jest",
+    "dist": "parcel build --global Promise src/polyfill.ts && tsc -d true src/Promise.ts --outDir dist && rimraf dist/Promise.js",
+    "test:unit": "jest --coverage",
+    "test:unit:watch": "jest --watch",
     "test:aplus": "tsc && promises-aplus-tests build/__tests__/adapter.js",
-    "test:watch": "jest --watch"
+    "test": "npm run test:unit && npm run test:aplus"
   },
   "author": "",
   "license": "ISC",

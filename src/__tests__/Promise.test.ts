@@ -2,6 +2,18 @@ import { Promise } from "../Promise";
 
 jest.setTimeout(1000);
 describe("Promise", () => {
+    test("race (promise + thenables)", (done) => {
+        expect.assertions(1);
+        Promise.race<string | number>([
+            { then: (resolve, reject) => setTimeout(() => reject(10), 50)},
+            new Promise((resolve, reject) => setTimeout((() => resolve("test")), 100)),
+        ])
+            .catch((err: any) => {
+                expect(err).toBe(10);
+                done();
+            });
+    });
+
     test("race (promises)", (done) => {
         expect.assertions(1);
         Promise.race([
@@ -25,7 +37,7 @@ describe("Promise", () => {
 
     test("race (some promises and non promises)", (done) => {
         expect.assertions(1);
-        Promise.race([
+        Promise.race<any>([
             new Promise((resolve, reject) => setTimeout(resolve, 300)),
             "test",
         ])
@@ -45,6 +57,39 @@ describe("Promise", () => {
                 expect(result).toBe("success: 1");
                 done();
             });
+    });
+
+    test("resolve custom thenable", (done) => {
+        expect.assertions(1);
+        let result = "";
+        Promise.resolve({ then: (resolve, reject) => setTimeout(() => resolve(1), 50)})
+            .then((arg: any) => result += `success: ${arg}`)
+            .catch((arg: any) => result += `fail: ${arg}`)
+            .then((arg: any) => {
+                expect(result).toBe("success: 1");
+                done();
+            });
+    });
+
+    test("resolve promise", (done) => {
+        expect.assertions(1);
+        let result = "";
+        Promise.resolve(new Promise<number>((resolve, reject) => setTimeout(() => resolve(1), 50)))
+            .then((arg: any) => result += `success: ${arg}`)
+            .catch((arg: any) => result += `fail: ${arg}`)
+            .then((arg: any) => {
+                expect(result).toBe("success: 1");
+                done();
+            });
+    });
+
+    test("detect cycles", (done) => {
+        expect.assertions(1);
+        const p: Promise<any> = Promise.resolve(1).then(() => p);
+        p.catch((err) => {
+            expect(err).toBeInstanceOf(Error);
+            done();
+        });
     });
 
     test("reject", (done) => {
@@ -73,8 +118,20 @@ describe("Promise", () => {
 
     test("all (some promises and non promises)", (done) => {
         expect.assertions(1);
-        const p = Promise.all([
+        const p = Promise.all<string|number>([
             "a",
+            new Promise((resolve, reject) => setTimeout(() => resolve(123), 500)),
+            1])
+            .then((result: any) => {
+                expect(result).toMatchObject(["a", 123, 1]);
+                done();
+            });
+    });
+
+    test("all (promise + thenable)", (done) => {
+        expect.assertions(1);
+        const p = Promise.all<number | string>([
+            { then: (resolve, reject) => setTimeout(() => resolve("a"), 50)},
             new Promise((resolve, reject) => setTimeout(() => resolve(123), 500)),
             1])
             .then((result: any) => {
@@ -209,7 +266,39 @@ describe("Promise", () => {
             });
     });
 
-    test("attempt to resolve and reject v1", (done) => {
+    test("throw an error from fulfillment handler", (done) => {
+        expect.assertions(1);
+        const promise1 = new Promise((resolve, reject) => {
+            resolve(2);
+        });
+
+        promise1
+            .then((a: any) => {
+                throw new Error("test");
+            })
+            .catch((a) => {
+                expect(a).toBeInstanceOf(Error);
+                done();
+            });
+    });
+
+    test("throw an error from rejection handler", (done) => {
+        expect.assertions(1);
+        const promise1 = new Promise((resolve, reject) => {
+            reject(2);
+        });
+
+        promise1
+            .catch((a: any) => {
+                throw new Error("test");
+            })
+            .catch((a) => {
+                expect(a).toBeInstanceOf(Error);
+                done();
+            });
+    });
+
+    test("attempt to resolve and reject", (done) => {
         expect.assertions(1);
         let result = "";
         const promise1 = new Promise((resolve, reject) => {
@@ -226,10 +315,11 @@ describe("Promise", () => {
             });
     });
 
-    test("attempt to resolve and reject v2", (done) => {
+    test("attempt to resolve and reject and throw error", (done) => {
         expect.assertions(1);
         let result = "";
         const promise1 = new Promise((resolve, reject) => {
+            throw new Error();
             resolve(1);
             reject(2);
         });
@@ -239,7 +329,7 @@ describe("Promise", () => {
                 (a: any) => result += `resolved with ${a}`,
                 (a: any) => result += `rejected with ${a}`)
             .finally(() => {
-                expect(result).toBe("resolved with 1");
+                expect(result).toBe("rejected with Error");
                 done();
             });
     });
