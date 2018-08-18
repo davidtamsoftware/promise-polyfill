@@ -127,15 +127,19 @@ export class Promise<T> implements Thenable<T> {
     }
 
     private resolve(value: T | undefined) {
-        this.value = value;
-        this.state = "fulfilled";
-        this.handleResolve();
+        if (this.state === "pending") {
+            this.value = value;
+            this.state = "fulfilled";
+            this.handleResolve();
+        }
     }
 
     private reject(err: any) {
-        this.error = err;
-        this.state = "rejected";
-        this.handleReject();
+        if (this.state === "pending") {
+            this.error = err;
+            this.state = "rejected";
+            this.handleReject();
+        }
     }
 
     private handleResolve() {
