@@ -16,28 +16,19 @@ export class Promise<T> implements Thenable<T> {
     private rejectionHandlers: Array<RejectionHandler<void>> = [];
 
     public static race<T>(entries: Array<T | Thenable<T>>): Promise<T> {
-        return new Promise((resolve, reject) => {
-            entries.forEach((entry) => {
-                if (entry instanceof Promise) {
-                    entry.then(resolve, reject);
-                } else if (Promise.isThenable(entry)) {
-                    new Promise<T>(
-                        (res, rej) => (entry as Thenable<T>).then(res, rej))
-                        .then(resolve, reject);
-                } else {
-                    resolve(entry as T);
-                }
-            });
-        });
+        return new Promise(
+            (resolve, reject) =>
+                entries.forEach((entry) =>
+                    Promise.resolveChain(entry, resolve, reject, [this])));
     }
 
     public static all<T>(entries: Array<T | Thenable<T>>): Promise<T[]> {
         return new Promise((resolve, reject) => {
             const count = entries.length;
             let fulfilledPromises = 0;
-            const resolvedEntries: any[] = [];
+            const resolvedEntries: T[] = [];
 
-            const resolveIfComplete = (index: number, val: T | Thenable<T>) => {
+            const resolveIfComplete = (index: number, val: T) => {
                 resolvedEntries[index] = val;
                 fulfilledPromises++;
                 if (fulfilledPromises === count) {
@@ -45,17 +36,10 @@ export class Promise<T> implements Thenable<T> {
                 }
             };
 
-            entries.forEach((entry, index) => {
-                if (entry instanceof Promise) {
-                    entry.then((val) => resolveIfComplete(index, val), reject);
-                } else if (Promise.isThenable(entry)) {
-                    new Promise<T>(
-                        (res, rej) => (entry as Thenable<T>).then(res, rej))
-                        .then((val) => resolveIfComplete(index, val), reject);
-                } else {
-                    resolveIfComplete(index, entry);
-                }
-            });
+            entries.forEach(
+                (entry, index) =>
+                    Promise.resolveChain(entry, (value) =>
+                        resolveIfComplete(index, value as T), reject, []));
         });
     }
 
@@ -95,7 +79,7 @@ export class Promise<T> implements Thenable<T> {
                 (val) => {
                     if (!executed) {
                         executed = true;
-                        this.resolveChain(val, this.resolve, this.reject, [this]);
+                        Promise.resolveChain(val, this.resolve, this.reject, [this]);
                     }
                 },
                 (val) => {
@@ -106,7 +90,6 @@ export class Promise<T> implements Thenable<T> {
                 });
         } catch (error) {
             if (!executed) {
-                executed = true;
                 this.reject(error);
             }
         }
@@ -127,6 +110,7 @@ export class Promise<T> implements Thenable<T> {
     }
 
     private resolve(value: T | undefined) {
+        /* istanbul ignore next */
         if (this.state === "pending") {
             this.value = value;
             this.state = "fulfilled";
@@ -135,6 +119,7 @@ export class Promise<T> implements Thenable<T> {
     }
 
     private reject(err: any) {
+        /* istanbul ignore next */
         if (this.state === "pending") {
             this.error = err;
             this.state = "rejected";
@@ -156,7 +141,7 @@ export class Promise<T> implements Thenable<T> {
         }
     }
 
-    private resolveChain<U, V>(
+    private static resolveChain<U, V>(
         value: U | Thenable<U>,
         resolve: SingleArgCallback<U, void>,
         reject: SingleArgCallback<any, void>,
@@ -194,7 +179,7 @@ export class Promise<T> implements Thenable<T> {
             this.fulfillmentHandlers.push(() => {
                 try {
                     const value = onFulfillment instanceof Function ? onFulfillment(this.value as T) : this.value;
-                    this.resolveChain(value as any, resolve, reject, [this, p]);
+                    Promise.resolveChain(value as any, resolve, reject, [this, p]);
                 } catch (error) {
                     reject(error);
                 }
@@ -206,7 +191,7 @@ export class Promise<T> implements Thenable<T> {
                 try {
                     if (onRejection instanceof Function) {
                         const value = onRejection(this.error);
-                        this.resolveChain(value, resolve, reject, [this, p]);
+                        Promise.resolveChain(value, resolve, reject, [this, p]);
                     } else {
                         reject(this.error);
                     }
