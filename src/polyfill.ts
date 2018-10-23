@@ -1,11 +1,11 @@
 import { Promise } from "./Promise";
 
 let target;
-if (window) {
+if (typeof window !== "undefined") {
     target = window;
-} else if (global) {
+} else if (typeof global !== "undefined") {
     target = global;
-} else if (self) {
+} else if (typeof self !== "undefined") {
     target = self;
 }
 
