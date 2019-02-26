@@ -1,23 +1,23 @@
 {
   "name": "promise",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "files": [
-    "dist/**/*"
-  ],
+  "description": "Lightweight es5 promise polyfill",
   "scripts": {
-    "build": "parcel src/demo/index.html",
-    "clean": "rimraf dist build",
+    "clean": "rimraf dist build promise-*.tgz",
     "lint": "tslint -p .",
     "predist": "npm run clean && npm run lint",
-    "dist": "parcel build --global Promise src/polyfill.ts && tsc -d true src/Promise.ts --outDir dist && rimraf dist/Promise.js",
+    "dist:development": "parcel build src/*.ts && tsc -d true --emitDeclarationOnly true src/*.ts --outDir dist",
+    "dist:production:browser": "parcel build src/*.ts --log-level 1 && tsc -d true --emitDeclarationOnly true src/*.ts --outDir dist",
+    "dist:development:umd": "parcel src/*.ts --global Promise && tsc -d true --emitDeclarationOnly true src/*.ts --outDir dist",
+    "dist:production:umd": "parcel build src/*.ts --global Promise && tsc -d true --emitDeclarationOnly true src/*.ts --outDir dist",
     "test:unit": "jest --coverage",
     "test:unit:watch": "jest --watch",
     "test:aplus": "tsc && promises-aplus-tests build/__tests__/adapter.js",
-    "test": "npm run test:unit && npm run test:aplus"
+    "test": "npm run test:unit && npm run test:aplus",
+    "prepack": "npm run dist:production:umd",
+    "postversion": "git push && git push --tags"
   },
-  "author": "",
+  "author": "David Tam",
   "license": "ISC",
   "devDependencies": {
     "@types/jest": "^23.1.6",
@@ -31,6 +31,19 @@
     "tslint": "^5.10.0",
     "typescript": "^2.9.2"
   },
+  "homepage": "https://github.com/davidtamsoftware/promise-polyfill.git",
+  "bugs": {
+    "url": "https://github.com/davidtamsoftware/promise-polyfill/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davidtamsoftware/promise-polyfill.git"
+  },
+  "keywords": [
+    "promise",
+    "promise-polyfill",
+    "promises-aplus"
+  ],
   "jest": {
     "transform": {
       "^.+\\.tsx?$": "ts-jest"

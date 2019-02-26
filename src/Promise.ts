@@ -130,14 +130,14 @@ export class Promise<T> implements Thenable<T> {
     private handleResolve() {
         while (this.fulfillmentHandlers.length > 0) {
             const handler = this.fulfillmentHandlers.shift();
-            setTimeout(handler, 0);
+            setTimeout(handler as any, 0);
         }
     }
 
     private handleReject() {
         while (this.rejectionHandlers.length > 0) {
             const handler = this.rejectionHandlers.shift();
-            setTimeout(handler, 0);
+            setTimeout(handler as any, 0);
         }
     }
 
