@@ -1,5 +1,5 @@
 {
-  "name": "promise",
+  "name": "promise-polyfill",
   "version": "1.0.0",
   "description": "Lightweight es5 promise polyfill",
   "scripts": {
