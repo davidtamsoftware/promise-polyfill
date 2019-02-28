@@ -1,5 +1,10 @@
 # Promise Polyfill &middot; [![Build Status](https://travis-ci.org/davidtamsoftware/promise-polyfill.svg?branch=master)](https://travis-ci.org/davidtamsoftware/promise-polyfill) [![Coverage Status](https://coveralls.io/repos/github/davidtamsoftware/promise-polyfill/badge.svg?branch=master)](https://coveralls.io/github/davidtamsoftware/promise-polyfill?branch=master)
 
+<a href="https://promisesaplus.com/">
+    <img src="https://promisesaplus.com/assets/logo-small.png" alt="Promises/A+ logo"
+         title="Promises/A+ 1.0 compliant" align="right" />
+</a>
+
 This is a lightweight es5 promise polyfill written in TypeScript.
 
 ## Features
