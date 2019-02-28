@@ -1,4 +1,4 @@
-# Promise Polyfill
+# Promise Polyfill &middot; [![Build Status](https://travis-ci.org/davidtamsoftware/promise-polyfill.svg?branch=master)](https://travis-ci.org/davidtamsoftware/promise-polyfill)
 
 This is a lightweight es5 promise polyfill written in TypeScript.
 
