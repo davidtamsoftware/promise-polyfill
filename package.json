@@ -15,7 +15,7 @@
     "test:aplus": "tsc && promises-aplus-tests build/__tests__/adapter.js",
     "test": "npm run test:unit && npm run test:aplus",
     "coveralls": "jest --coverage --coverageReporters=text-lcov | coveralls",
-    "prepack": "npm run dist:production:umd",
+    "prepack": "npm run clean && npm install && npm run dist:production:umd",
     "postversion": "git push && git push --tags"
   },
   "author": "David Tam",
